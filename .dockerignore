@@ -1,0 +1,94 @@
+# Docker ignore file for Data Alchemist
+# Excludes unnecessary files from Docker build context
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+.tox/
+.cache
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+site/
+
+# Test outputs
+.pytest_cache/
+*.log
+test-results/
+coverage.xml
+*.cover
+
+# Data directories (uncomment if you don't want to include data in the image)
+data/
+*.csv
+*.json
+*.wav
+*.png
+*.jpg
+*.jpeg
+*.log
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+Dockerfile*
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+temp/
+tmp/
+
+# Documentation that doesn't need to be in the image
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+claude.md
+
+# Development scripts (already in the image from source)
+setup.sh
+setup.bat

@@ -677,41 +677,86 @@ This approach ensures users **not only use, but truly understand** the system ar
 
 ## Setup Instructions
 
-1. **Python Version:**  
+### Option 1: Docker (Recommended for Windows/WSL)
+
+**Perfect for Windows users with WSL or anyone who prefers containerized environments!**
+
+1. **Prerequisites:**
+   - Docker Desktop (Windows/Mac) or Docker Engine (Linux)
+   - Docker Compose
+   - For Windows: WSL2 enabled
+
+2. **Quick Start:**
+   ```bash
+   # Clone the repository
+   git clone <repo-url>
+   cd data-alchemist
+
+   # Run the automated setup script
+   # Linux/WSL/Mac:
+   ./docker-quickstart.sh
+
+   # Windows (PowerShell/CMD):
+   docker-quickstart.bat
+   ```
+
+3. **Manual Docker Setup:**
+   ```bash
+   # Create data directory
+   mkdir -p data
+
+   # Build the image
+   docker-compose build
+
+   # Run the CLI
+   docker-compose run --rm data-alchemist --help
+
+   # Convert a file
+   docker-compose run --rm data-alchemist convert /data/sample.csv --output /data/output.json --format json
+   ```
+
+4. **See Full Docker Documentation:**
+   📖 **[DOCKER_SETUP.md](DOCKER_SETUP.md)** - Complete guide for Windows/WSL users with troubleshooting
+
+---
+
+### Option 2: Native Python Installation
+
+1. **Python Version:**
    Ensure Python 3.8 or newer is installed.
 
-2. **Clone Repository:**  
+2. **Clone Repository:**
    ```bash
    git clone <repo-url>
    cd data-alchemist
    ```
 
-3. **Create and Activate Virtual Environment:**  
-   Unix/macOS:  
+3. **Create and Activate Virtual Environment:**
+   Unix/macOS:
    ```bash
    python3 -m venv venv
    source venv/bin/activate
-   ```  
-   Windows:  
+   ```
+   Windows:
    ```cmd
    python -m venv venv
    .\venv\Scripts\activate
    ```
 
-4. **Install Dependencies:**  
+4. **Install Dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-5. **Run Initial Tests:**  
+5. **Run Initial Tests:**
    ```bash
    python -m unittest discover tests
    ```
 
-6. **Project Structure Highlights:**  
-   - `data_alchemist/` – core modules and plugins  
-   - `tests/` – unit and integration tests  
-   - `examples/` – sample scripts and data files  
+6. **Project Structure Highlights:**
+   - `data_alchemist/` – core modules and plugins
+   - `tests/` – unit and integration tests
+   - `examples/` – sample scripts and data files
    - `README.md` – project documentation
 
 No environment variables are required initially.
