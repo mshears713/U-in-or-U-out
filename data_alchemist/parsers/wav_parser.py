@@ -20,6 +20,11 @@ import numpy as np
 
 from data_alchemist.core.interfaces import BaseParser
 from data_alchemist.core.models import IntermediateData, ParserError
+from data_alchemist.utils.validation import (
+    validate_file_for_parsing,
+    timeout,
+    DEFAULT_PARSE_TIMEOUT
+)
 
 logger = logging.getLogger(__name__)
 
@@ -189,18 +194,29 @@ class WAVParser(BaseParser):
 
         logger.info(f"Parsing WAV file: {file_path}")
 
-        # Validate file exists
-        if not file_path.exists():
-            raise ParserError(f"File not found: {file_path}")
+        # Phase 4: Comprehensive validation with resource checks
+        try:
+            validation_result = validate_file_for_parsing(
+                file_path,
+                file_type='wav',
+                max_size=None  # Use default limit
+            )
+            logger.debug(f"Validation passed: {validation_result['file_size']:,} bytes")
+        except Exception as e:
+            raise ParserError(f"File validation failed: {e}")
 
-        if not file_path.is_file():
-            raise ParserError(f"Path is not a file: {file_path}")
-
-        # Parse WAV file
-        if SCIPY_AVAILABLE:
-            return self._parse_with_scipy(file_path)
-        else:
-            return self._parse_fallback(file_path)
+        # Phase 4: Parse with timeout protection
+        try:
+            with timeout(DEFAULT_PARSE_TIMEOUT, "WAV parsing"):
+                if SCIPY_AVAILABLE:
+                    return self._parse_with_scipy(file_path)
+                else:
+                    return self._parse_fallback(file_path)
+        except Exception as e:
+            # Re-raise ParserError as-is, wrap others
+            if isinstance(e, ParserError):
+                raise
+            raise ParserError(f"WAV parsing failed: {e}")
 
     def _parse_with_scipy(self, file_path: Path) -> IntermediateData:
         """

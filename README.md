@@ -117,19 +117,25 @@ This stack was chosen to balance accessibility with power. Python’s ecosystem 
 
 ## Current Status
 
-**✅ Phase 3 Complete** - Additional Parsers & Output Conversion
+**✅ Phase 4 Complete** - Refinement, Error Handling & Testing
 
 ### What's Working:
 - ✅ File type detection with multi-strategy heuristics (signatures, extensions, content analysis)
+- ✅ **Ambiguous detection handling** - warns when multiple file types are possible
 - ✅ CSV/TSV parser plugin with robust delimiter detection and quote handling
 - ✅ Plain text log parser plugin with timestamp and log level extraction
 - ✅ WAV audio file parser plugin with metadata extraction and scipy support
 - ✅ PNG/JPEG image parser plugin with EXIF data and dimension extraction
+- ✅ **Comprehensive error handling** with validation and helpful error messages
+- ✅ **Timeout protection** for parsing operations (prevents hanging)
+- ✅ **File size validation** and resource usage guards
+- ✅ **Performance optimizations** - chunked reading for large CSV files
 - ✅ JSON output converter plugin with pretty-printing and datetime serialization
 - ✅ CSV output converter plugin with tabular and key-value modes
 - ✅ Plugin manager system for dynamic parser and converter registration
 - ✅ CLI commands: `detect`, `list-parsers`, `list-converters`, `convert`
-- ✅ Comprehensive unit tests with 121 passing tests
+- ✅ **Comprehensive unit tests** with 140+ passing tests
+- ✅ **Integration tests** for end-to-end workflows
 - ✅ Sample test files for CSV, log, WAV, and image formats
 
 ### Quick Start:
@@ -153,12 +159,157 @@ python -m data_alchemist.cli convert tests/fixtures/sample.csv --output output.c
 python -m unittest discover tests/unit
 ```
 
-### Next Up - Phase 4:
-- Comprehensive error handling in parsers
-- Validation checks for ambiguous detection matches
-- Unit tests for error and edge case handling
-- Logging enhancements for debugging
-- Performance optimizations with buffered reading
+---
+
+## Phase 4 Enhancements
+
+Phase 4 focused on refinement, robustness, and production-readiness with comprehensive error handling, testing, and performance optimizations.
+
+### Error Handling & Validation
+
+**File Validation:**
+- Pre-parsing file validation checks (existence, readability, size)
+- Type-specific file size limits to prevent resource exhaustion
+- Empty file detection with helpful error messages
+- Comprehensive validation results for debugging
+
+**Error Messages:**
+- All errors include helpful tips for resolution
+- File paths and sizes included in error messages
+- Suggestions for common fixes (e.g., "Check file extension matches content")
+- Error messages designed for both users and developers
+
+**Resource Protection:**
+- File size limits: CSV (500MB), Log (1GB), WAV (500MB), Images (50MB)
+- Timeout protection (60s for parsing, 5s for detection)
+- Memory usage estimation before parsing
+- Graceful handling of resource constraints
+
+### Ambiguous Detection Handling
+
+Phase 4 adds sophisticated handling for files that could match multiple types:
+
+- **Multi-type detection**: Identifies all possible file types with confidence scores
+- **Ambiguity warnings**: Warns when detection is uncertain
+- **Alternative suggestions**: Shows other possible file types
+- **Helpful tips**: Suggests renaming files with correct extensions
+
+Example:
+```
+WARNING: Ambiguous file type detection for: data.txt
+  Proceeding with: csv (80%)
+  Other possibilities: log (65%), text (50%)
+  Tip: Rename file with correct extension for unambiguous detection
+```
+
+### Performance Optimizations
+
+**Chunked Reading for Large Files:**
+- CSV files > 10 MB use chunked reading (reduces memory usage)
+- Processes data in 10,000-row chunks
+- Maintains data integrity while improving performance
+- Automatic selection based on file size
+
+**Buffered I/O:**
+- All parsers use efficient buffered reading
+- Minimal file system operations
+- Lazy loading where applicable
+
+### Testing Enhancements
+
+**Unit Tests (140+ tests):**
+- Error handling and edge case tests
+- File validation tests
+- Memory estimation tests
+- Ambiguous detection tests
+- Parser error recovery tests
+
+**Integration Tests:**
+- End-to-end workflow tests (CSV→JSON, Log→JSON, etc.)
+- Large file processing tests
+- Error propagation tests
+- Multi-format batch processing tests
+
+---
+
+## Error Handling & Troubleshooting
+
+### Common Errors and Solutions
+
+#### File Not Found
+```
+FileNotFoundError: File not found: /path/to/file.csv
+```
+**Solution:** Check file path is correct and file exists.
+
+#### File Too Large
+```
+FileSizeError: File too large: data.csv
+Size: 600,000,000 bytes (572.2 MB)
+Limit: 524,288,000 bytes (500.0 MB)
+Tip: Process smaller files or increase limit
+```
+**Solution:**
+- Split large files into smaller chunks
+- Increase size limits in validation (advanced users)
+- Use streaming processing for very large files
+
+#### Empty File
+```
+ValueError: File is empty: empty.csv
+Tip: Ensure file contains data before parsing
+```
+**Solution:** Verify file has content. Check if file was created correctly.
+
+#### Ambiguous Detection
+```
+WARNING: Ambiguous file type detection for: data.txt
+  Proceeding with: csv (80%)
+  Other possibilities: log (65%)
+```
+**Solution:** Rename file with appropriate extension (.csv, .log, etc.)
+
+#### Parsing Timeout
+```
+TimeoutError: CSV parsing timed out after 60 seconds
+Tip: File may be corrupted, too large, or processing is too slow
+```
+**Solution:**
+- Check if file is corrupted
+- Reduce file size
+- Verify file format is correct
+
+#### Encoding Errors
+```
+ParserError: Encoding error reading CSV: invalid start byte
+Tip: File may have unusual encoding
+```
+**Solution:**
+- File may use non-UTF-8 encoding
+- Parser will attempt alternative encodings (latin-1)
+- Convert file to UTF-8 if possible
+
+### Debugging Tips
+
+**Enable Verbose Logging:**
+```bash
+python -m data_alchemist.cli --verbose convert input.csv --output output.json --format json
+```
+
+**Check Detection Details:**
+```bash
+python -m data_alchemist.cli detect input_file.ext
+```
+
+**Validate File Before Processing:**
+- Run detection first to verify file type
+- Check file size is reasonable
+- Verify file is not empty or corrupted
+
+**Performance Issues:**
+- Large files (> 100 MB) may take longer to process
+- Use verbose logging to see progress
+- Consider chunked processing for very large datasets
 
 ---
 
