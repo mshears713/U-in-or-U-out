@@ -1,0 +1,18 @@
+# Data Alchemist - Dependencies
+# Python 3.8+ required
+
+# Data processing and CSV handling
+pandas>=1.3.0
+
+# Audio file parsing (WAV)
+scipy>=1.7.0
+
+# Image file parsing (PNG, JPEG)
+Pillow>=8.3.0
+
+# Testing framework (optional - unittest is built-in)
+pytest>=6.2.0
+pytest-cov>=2.12.0
+
+# Code quality (optional but recommended)
+flake8>=3.9.0
