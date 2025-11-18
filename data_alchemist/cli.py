@@ -344,21 +344,55 @@ def create_argument_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog='data-alchemist',
-        description='Data Alchemist - Universal Data Conversion Framework',
-        epilog='For more information, see the documentation at docs/'
+        description='''Data Alchemist - Universal Data Conversion Framework
+
+A modular, plugin-based tool for automatic file type detection and conversion.
+Supports CSV, logs, WAV audio, PNG/JPEG images, and more with extensible plugins.
+
+Features:
+  • Automatic file type detection with confidence scoring
+  • Robust error handling and validation
+  • Large file support with chunked processing
+  • Pure Python - no external AI or cloud dependencies''',
+        epilog='''Examples:
+  # Detect file type
+  python -m data_alchemist.cli detect data.csv
+
+  # Convert CSV to JSON
+  python -m data_alchemist.cli convert data.csv --output output.json --format json
+
+  # List available parsers and converters
+  python -m data_alchemist.cli list-parsers
+  python -m data_alchemist.cli list-converters
+
+  # Enable verbose output for debugging
+  python -m data_alchemist.cli --verbose convert data.csv -o output.json -f json
+
+For more information:
+  • User Guide: USER_GUIDE.md
+  • Developer Guide: DEVELOPER_GUIDE.md
+  • Examples: examples/ directory
+  • Report issues: https://github.com/yourusername/data-alchemist/issues''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
     # Global options
     parser.add_argument(
         '--verbose', '-v',
         action='store_true',
-        help='Enable verbose logging (debug level)'
+        help='''Enable verbose logging output for debugging.
+             Shows detailed information about detection, parsing, and conversion steps.
+             Useful for troubleshooting issues or understanding the conversion process.'''
     )
 
     parser.add_argument(
         '--version',
         action='version',
-        version='Data Alchemist 0.3.0 (Phase 3 - Additional Parsers & Output Conversion)'
+        version='''Data Alchemist v1.0.0 (Phase 5 - Documentation & Finalization)
+
+A modular universal data conversion framework
+Copyright © 2024 - Licensed under MIT
+For more information: https://github.com/yourusername/data-alchemist'''
     )
 
     # Subcommands
@@ -372,50 +406,154 @@ def create_argument_parser() -> argparse.ArgumentParser:
     convert_parser = subparsers.add_parser(
         'convert',
         help='Convert input file to output format',
-        description='Parse an input file and convert to specified output format'
+        description='''Convert input file to specified output format
+
+Automatically detects the input file type and converts it to the specified
+output format. Supports multiple input formats (CSV, logs, WAV, images) and
+output formats (JSON, CSV).
+
+The conversion process:
+  1. Detect input file type using heuristics
+  2. Select appropriate parser plugin
+  3. Parse file into intermediate representation
+  4. Convert to specified output format
+  5. Write output file
+
+Supported input formats:
+  • CSV/TSV (.csv, .tsv) - Up to 500 MB, chunked processing for large files
+  • Log files (.log, .txt) - Up to 1 GB, extracts timestamps and levels
+  • WAV audio (.wav) - Up to 500 MB, extracts metadata and audio properties
+  • Images (.png, .jpg, .jpeg) - Up to 50 MB, includes EXIF data
+
+Supported output formats:
+  • JSON - Pretty-printed, structured format
+  • CSV - Tabular format, Excel-compatible''',
+        epilog='''Examples:
+  # Convert CSV to JSON
+  python -m data_alchemist.cli convert data.csv --output output.json --format json
+
+  # Convert log file to JSON (short form)
+  python -m data_alchemist.cli convert app.log -o events.json -f json
+
+  # Convert CSV to CSV (validates and cleans data)
+  python -m data_alchemist.cli convert messy.csv -o clean.csv -f csv
+
+  # With verbose output to see processing details
+  python -m data_alchemist.cli convert large.csv -o output.json -f json --verbose''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     convert_parser.add_argument(
         'input',
         type=Path,
-        help='Input file path'
+        metavar='INPUT_FILE',
+        help='Path to input file to convert'
     )
     convert_parser.add_argument(
         '--output', '-o',
         type=Path,
         required=True,
-        help='Output file path'
+        metavar='OUTPUT_FILE',
+        help='Path where output file will be written'
     )
     convert_parser.add_argument(
         '--format', '-f',
         choices=['json', 'csv'],
         default='json',
-        help='Output format (default: json)'
+        metavar='FORMAT',
+        help='Output format: json or csv (default: json)'
     )
 
     # Detect command
     detect_parser = subparsers.add_parser(
         'detect',
         help='Detect file type without conversion',
-        description='Identify the file type and show detection details'
+        description='''Detect and identify file type using heuristic analysis
+
+Analyzes the input file using multiple detection strategies to determine
+its type. Shows detailed detection information including:
+  • Detected file type
+  • Detection confidence score
+  • Available parser plugins
+  • Supported file extensions
+
+Detection strategies:
+  1. File signature analysis (magic bytes)
+  2. File extension matching
+  3. Content pattern analysis
+  4. Delimiter and structure detection
+
+Use this command to:
+  • Verify file type before conversion
+  • Troubleshoot detection issues
+  • Check if a parser is available for a file type
+  • See detection confidence scores''',
+        epilog='''Examples:
+  # Detect file type
+  python -m data_alchemist.cli detect data.csv
+
+  # Detect with verbose output
+  python -m data_alchemist.cli --verbose detect unknown_file.dat
+
+  # Detect multiple files (bash loop)
+  for file in data/*; do python -m data_alchemist.cli detect "$file"; done''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     detect_parser.add_argument(
         'input',
         type=Path,
-        help='Input file path'
+        metavar='INPUT_FILE',
+        help='Path to file to detect'
     )
 
     # List parsers command
     subparsers.add_parser(
         'list-parsers',
         help='List all registered parser plugins',
-        description='Display all available input parsers and supported formats'
+        description='''List all available input format parsers
+
+Shows all registered parser plugins that can read and parse input files.
+Each parser handles specific file formats and converts them to a common
+intermediate representation.
+
+Displayed information:
+  • Parser name and description
+  • Supported file extensions
+  • Maximum file size limits
+  • Special features (chunked reading, encoding detection, etc.)
+
+Use this command to:
+  • See what input formats are supported
+  • Check if a parser is registered for your file type
+  • Verify parser availability before conversion
+  • Learn about parser capabilities''',
+        epilog='''Example:
+  python -m data_alchemist.cli list-parsers''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
     # List converters command
     subparsers.add_parser(
         'list-converters',
         help='List all registered converter plugins',
-        description='Display all available output converters and formats'
+        description='''List all available output format converters
+
+Shows all registered converter plugins that can transform intermediate data
+into various output formats. Each converter handles a specific output format
+and can process data from any input parser.
+
+Displayed information:
+  • Converter name and description
+  • Output format identifier
+  • Format-specific features
+
+Use this command to:
+  • See what output formats are supported
+  • Check available conversion options
+  • Verify converter availability
+  • Plan your data conversion workflow''',
+        epilog='''Example:
+  python -m data_alchemist.cli list-converters''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
     return parser
