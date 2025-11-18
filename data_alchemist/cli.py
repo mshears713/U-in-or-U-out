@@ -27,6 +27,8 @@ from data_alchemist.core.models import (
     ParserError,
     ConverterError
 )
+from data_alchemist.detection import detect_file_type, get_detection_details
+from data_alchemist.parsers import CSVParser, LogParser
 
 # Module logger (will be configured in main())
 logger = logging.getLogger(__name__)
@@ -46,13 +48,12 @@ def execute_convert(
     Execute the convert command.
 
     Educational Note:
-    This is a placeholder for the full conversion workflow.
-    In Phase 2, this will:
+    Full conversion workflow:
     1. Detect file type
     2. Get appropriate parser from plugin manager
     3. Parse input file to IntermediateData
     4. Get appropriate converter from plugin manager
-    5. Convert to output format
+    5. Convert to output format and write output file
 
     Args:
         input_path: Path to input file
@@ -73,12 +74,49 @@ def execute_convert(
             logger.error(f"Input path is not a file: {input_path}")
             return 1
 
-        # Phase 1: Just log the operation (no actual conversion yet)
-        logger.info(f"Convert: {input_path} -> {output_path} (format: {output_format})")
-        logger.info("Note: Full conversion functionality will be implemented in Phase 2")
+        logger.info(f"Converting: {input_path} -> {output_path} (format: {output_format})")
 
-        # Placeholder: Check if we have a converter for the requested format
+        # Step 1: Detect file type
+        logger.debug("Step 1: Detecting file type...")
+        try:
+            file_type = detect_file_type(input_path)
+            logger.info(f"Detected file type: {file_type}")
+        except DetectionError as e:
+            logger.error(f"File type detection failed: {e}")
+            return 1
+
+        # Step 2: Get appropriate parser
+        logger.debug("Step 2: Finding parser...")
+        parser = plugin_manager.get_parser_for_extension(input_path.suffix)
+
+        if not parser:
+            logger.error(
+                f"No parser registered for extension '{input_path.suffix}'. "
+                f"Supported extensions: {plugin_manager.get_supported_extensions()}"
+            )
+            return 1
+
+        logger.info(f"Using parser: {parser.parser_name}")
+
+        # Step 3: Parse input file
+        logger.debug("Step 3: Parsing input file...")
+        try:
+            intermediate_data = parser.parse(input_path)
+            logger.info(f"Successfully parsed file")
+
+            # Show warnings if any
+            if intermediate_data.has_warnings():
+                for warning in intermediate_data.warnings:
+                    logger.warning(warning)
+
+        except ParserError as e:
+            logger.error(f"Parsing failed: {e}")
+            return 1
+
+        # Step 4: Get appropriate converter
+        logger.debug("Step 4: Finding converter...")
         converter = plugin_manager.get_converter_for_format(output_format)
+
         if not converter:
             logger.error(
                 f"No converter registered for format '{output_format}'. "
@@ -86,14 +124,21 @@ def execute_convert(
             )
             return 1
 
-        # TODO Phase 2: Implement actual conversion workflow
-        # 1. Detect file type
-        # 2. Get parser
-        # 3. Parse to IntermediateData
-        # 4. Convert using converter
-        # 5. Write output
+        logger.info(f"Using converter: {converter.converter_name}")
 
-        logger.info("Conversion completed successfully (placeholder)")
+        # Step 5: Convert and write output
+        logger.debug("Step 5: Converting to output format...")
+        try:
+            converter.convert(intermediate_data, output_path)
+            logger.info(f"Successfully wrote output to: {output_path}")
+        except ConverterError as e:
+            logger.error(f"Conversion failed: {e}")
+            return 1
+
+        print(f"\nConversion complete!")
+        print(f"  Input:  {input_path} ({file_type})")
+        print(f"  Output: {output_path} ({output_format})")
+
         return 0
 
     except DataAlchemistError as e:
@@ -132,24 +177,38 @@ def execute_detect(input_path: Path, plugin_manager: PluginManager) -> int:
             logger.error(f"Input path is not a file: {input_path}")
             return 1
 
-        # Phase 1: Just log the operation (detection will be implemented in Phase 2)
         logger.info(f"Detecting file type: {input_path}")
-        logger.info("Note: Full detection functionality will be implemented in Phase 2")
 
-        # Placeholder: Check extension against registered parsers
-        extension = input_path.suffix.lower()
-        parser = plugin_manager.get_parser_for_extension(extension)
+        # Get detailed detection information
+        details = get_detection_details(input_path)
 
-        if parser:
-            print(f"File: {input_path}")
-            print(f"Extension: {extension}")
-            print(f"Detected parser: {parser.parser_name}")
-            print(f"Supported formats: {parser.supported_formats}")
-        else:
-            print(f"File: {input_path}")
-            print(f"Extension: {extension}")
-            print(f"No parser registered for this extension")
-            print(f"Supported extensions: {plugin_manager.get_supported_extensions()}")
+        # Display detection results
+        print("\nFile Detection Results")
+        print("=" * 60)
+        print(f"File path:        {details['file_path']}")
+        print(f"File size:        {details['file_size']} bytes")
+        print(f"Extension:        {input_path.suffix or '(none)'}")
+        print()
+
+        if details['error']:
+            print(f"Detection error:  {details['error']}")
+            return 1
+
+        print(f"Signature type:   {details['signature_type'] or '(none)'}")
+        print(f"Extension type:   {details['extension_type'] or '(none)'}")
+        print(f"Final type:       {details['final_type'] or '(none)'}")
+        print(f"Confidence:       {details['confidence']*100:.0f}%")
+        print()
+
+        # Check for available parser
+        if details['final_type']:
+            parser = plugin_manager.get_parser_for_extension(input_path.suffix)
+            if parser:
+                print(f"Available parser: {parser.parser_name}")
+                print(f"Formats:          {', '.join(parser.supported_formats)}")
+            else:
+                print(f"Warning:          No parser registered for {input_path.suffix}")
+                print(f"Supported:        {', '.join(plugin_manager.get_supported_extensions())}")
 
         return 0
 
@@ -298,7 +357,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--version',
         action='version',
-        version='Data Alchemist 0.1.0 (Phase 1 - Foundations)'
+        version='Data Alchemist 0.2.0 (Phase 2 - Core Functionality)'
     )
 
     # Subcommands
@@ -396,12 +455,17 @@ def main(argv: Optional[list] = None) -> int:
     # Create plugin manager
     plugin_manager = PluginManager()
 
-    # TODO Phase 2 & 3: Register parsers and converters here
+    # Phase 2: Register parsers
+    logger.debug("Registering parsers...")
+    plugin_manager.register_parser(CSVParser())
+    plugin_manager.register_parser(LogParser())
+
+    # TODO Phase 3: Register converters here
     # Example:
-    # from data_alchemist.parsers.csv_parser import CSVParser
     # from data_alchemist.converters.json_converter import JSONConverter
-    # plugin_manager.register_parser(CSVParser())
+    # from data_alchemist.converters.csv_converter import CSVConverter
     # plugin_manager.register_converter(JSONConverter())
+    # plugin_manager.register_converter(CSVConverter())
 
     logger.debug(f"Plugin manager stats: {plugin_manager.get_stats()}")
 
