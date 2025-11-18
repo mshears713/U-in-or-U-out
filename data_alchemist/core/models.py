@@ -69,6 +69,43 @@ class ConverterError(DataAlchemistError):
     pass
 
 
+class ValidationError(DataAlchemistError):
+    """
+    Raised when input validation fails.
+
+    Example scenarios:
+    - Invalid file path
+    - Empty file
+    - File exceeds size limits
+    - Insufficient permissions
+    """
+    pass
+
+
+class FileSizeError(ValidationError):
+    """
+    Raised when file exceeds size limits.
+
+    Example scenarios:
+    - File too large for available memory
+    - File exceeds configured size limit
+    - Prevents resource exhaustion
+    """
+    pass
+
+
+class TimeoutError(DataAlchemistError):
+    """
+    Raised when operation exceeds time limit.
+
+    Example scenarios:
+    - Parsing takes too long
+    - Detection hangs on corrupted file
+    - Prevents indefinite blocking
+    """
+    pass
+
+
 # ============================================================================
 # Core Data Model
 # ============================================================================

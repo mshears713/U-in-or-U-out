@@ -21,7 +21,9 @@ from data_alchemist.core.models import DetectionError
 from data_alchemist.detection.heuristics import (
     detect_with_confidence,
     detect_by_signature,
-    detect_by_extension
+    detect_by_extension,
+    is_detection_ambiguous,
+    detect_all_possible_types
 )
 
 logger = logging.getLogger(__name__)
@@ -106,6 +108,19 @@ def detect_file_type(
             f"Detected as '{file_type}' with {confidence*100:.0f}% confidence\n"
             f"Required: {min_confidence*100:.0f}% confidence\n"
             f"Tip: Check file extension matches content, or lower --min-confidence"
+        )
+
+    # Phase 4: Check for ambiguous detection
+    is_ambiguous, all_types = is_detection_ambiguous(file_path)
+    if is_ambiguous:
+        # Log warning about ambiguous detection
+        sorted_types = sorted(all_types.items(), key=lambda x: x[1], reverse=True)
+        alternatives = ", ".join([f"{t} ({c*100:.0f}%)" for t, c in sorted_types[:3]])
+        logger.warning(
+            f"Ambiguous file type detection for: {file_path}\n"
+            f"  Proceeding with: {file_type} ({confidence*100:.0f}%)\n"
+            f"  Other possibilities: {alternatives}\n"
+            f"  Tip: Rename file with correct extension for unambiguous detection"
         )
 
     logger.info(

@@ -21,6 +21,11 @@ from datetime import datetime
 
 from data_alchemist.core.interfaces import BaseParser
 from data_alchemist.core.models import IntermediateData, ParserError
+from data_alchemist.utils.validation import (
+    validate_file_for_parsing,
+    timeout,
+    DEFAULT_PARSE_TIMEOUT
+)
 
 logger = logging.getLogger(__name__)
 
@@ -176,16 +181,21 @@ class LogParser(BaseParser):
 
         logger.info(f"Parsing log file: {file_path}")
 
-        # Validate file exists
-        if not file_path.exists():
-            raise ParserError(f"File not found: {file_path}")
-
-        if not file_path.is_file():
-            raise ParserError(f"Path is not a file: {file_path}")
-
-        # Parse log entries
+        # Phase 4: Comprehensive validation with resource checks
         try:
-            entries = self._parse_log_entries(file_path)
+            validation_result = validate_file_for_parsing(
+                file_path,
+                file_type='log',
+                max_size=None  # Use default limit
+            )
+            logger.debug(f"Validation passed: {validation_result['file_size']:,} bytes")
+        except Exception as e:
+            raise ParserError(f"File validation failed: {e}")
+
+        # Phase 4: Parse with timeout protection
+        try:
+            with timeout(DEFAULT_PARSE_TIMEOUT, "Log parsing"):
+                entries = self._parse_log_entries(file_path)
 
             if not entries:
                 raise ParserError(

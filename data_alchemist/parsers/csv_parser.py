@@ -20,6 +20,11 @@ import pandas as pd
 
 from data_alchemist.core.interfaces import BaseParser
 from data_alchemist.core.models import IntermediateData, ParserError
+from data_alchemist.utils.validation import (
+    validate_file_for_parsing,
+    timeout,
+    DEFAULT_PARSE_TIMEOUT
+)
 
 logger = logging.getLogger(__name__)
 
@@ -153,36 +158,47 @@ class CSVParser(BaseParser):
 
         logger.info(f"Parsing CSV file: {file_path}")
 
-        # Validate file exists and is readable
-        if not file_path.exists():
-            raise ParserError(f"File not found: {file_path}")
-
-        if not file_path.is_file():
-            raise ParserError(f"Path is not a file: {file_path}")
-
-        # Try to parse CSV with pandas
+        # Phase 4: Comprehensive validation with resource checks
         try:
-            # Educational Note:
-            # pandas.read_csv is very robust and handles many edge cases:
-            # - Auto-detects delimiters (though we can specify)
-            # - Handles quoted fields
-            # - Deals with missing values
-            # - Supports different encodings
-
-            # First, try to detect delimiter
-            delimiter = self._detect_delimiter(file_path)
-
-            # Read CSV with detected delimiter
-            df = pd.read_csv(
+            validation_result = validate_file_for_parsing(
                 file_path,
-                sep=delimiter,
-                encoding='utf-8',
-                # Keep as strings initially to preserve data
-                dtype=str,
-                # Handle various NA representations
-                na_values=['', 'NA', 'N/A', 'null', 'NULL', 'None'],
-                keep_default_na=True
+                file_type='csv',
+                max_size=None  # Use default limit
             )
+            logger.debug(f"Validation passed: {validation_result['file_size']:,} bytes")
+        except Exception as e:
+            raise ParserError(f"File validation failed: {e}")
+
+        # Phase 4: Parse with timeout protection
+        try:
+            with timeout(DEFAULT_PARSE_TIMEOUT, "CSV parsing"):
+                # Educational Note:
+                # pandas.read_csv is very robust and handles many edge cases:
+                # - Auto-detects delimiters (though we can specify)
+                # - Handles quoted fields
+                # - Deals with missing values
+                # - Supports different encodings
+
+                # First, try to detect delimiter
+                delimiter = self._detect_delimiter(file_path)
+
+                # Phase 4: Use chunked reading for large files (performance optimization)
+                file_size = validation_result['file_size']
+                if file_size > 10 * 1024 * 1024:  # > 10 MB
+                    logger.info(f"Large CSV file ({file_size / (1024**2):.1f} MB), using chunked reading")
+                    df = self._read_csv_chunked(file_path, delimiter)
+                else:
+                    # Read CSV normally for smaller files
+                    df = pd.read_csv(
+                        file_path,
+                        sep=delimiter,
+                        encoding='utf-8',
+                        # Keep as strings initially to preserve data
+                        dtype=str,
+                        # Handle various NA representations
+                        na_values=['', 'NA', 'N/A', 'null', 'NULL', 'None'],
+                        keep_default_na=True
+                    )
 
             logger.info(
                 f"Successfully parsed CSV: {len(df)} rows, "
@@ -296,6 +312,70 @@ class CSVParser(BaseParser):
         except Exception as e:
             logger.warning(f"Delimiter detection failed: {e}, defaulting to comma")
             return ','
+
+    def _read_csv_chunked(
+        self,
+        file_path: Path,
+        delimiter: str,
+        chunk_size: int = 10000
+    ) -> pd.DataFrame:
+        """
+        Read large CSV files in chunks for better memory efficiency.
+
+        Educational Note:
+        Phase 4 Performance Optimization:
+        For large CSV files (> 10 MB), reading the entire file at once
+        can be memory-intensive. This method uses pandas chunked reading
+        to process the file in smaller pieces, reducing peak memory usage.
+
+        Strategy:
+        1. Read file in chunks of specified size
+        2. Process each chunk individually
+        3. Concatenate chunks into final DataFrame
+        4. More memory-efficient for large files
+
+        Args:
+            file_path: Path to CSV file
+            delimiter: CSV delimiter character
+            chunk_size: Number of rows per chunk
+
+        Returns:
+            Complete DataFrame
+        """
+        logger.debug(f"Reading CSV in chunks of {chunk_size} rows")
+
+        chunks = []
+        row_count = 0
+
+        try:
+            # Read CSV in chunks
+            chunk_iterator = pd.read_csv(
+                file_path,
+                sep=delimiter,
+                encoding='utf-8',
+                dtype=str,
+                na_values=['', 'NA', 'N/A', 'null', 'NULL', 'None'],
+                keep_default_na=True,
+                chunksize=chunk_size
+            )
+
+            for chunk in chunk_iterator:
+                chunks.append(chunk)
+                row_count += len(chunk)
+                logger.debug(f"Processed chunk: {row_count} rows so far")
+
+            # Concatenate all chunks
+            if chunks:
+                df = pd.concat(chunks, ignore_index=True)
+                logger.info(f"Chunked reading complete: {row_count} total rows")
+                return df
+            else:
+                # Empty file - return empty DataFrame
+                return pd.DataFrame()
+
+        except Exception as e:
+            logger.error(f"Error during chunked reading: {e}")
+            raise
 
     def _dataframe_to_intermediate(
         self,

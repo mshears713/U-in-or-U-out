@@ -411,3 +411,138 @@ def detect_with_confidence(file_path: Path) -> Tuple[Optional[str], float]:
     # No detection successful
     logger.warning(f"Unable to detect file type: {file_path}")
     return None, 0.0
+
+
+# ============================================================================
+# Ambiguous Detection Handling (Phase 4)
+# ============================================================================
+
+def detect_all_possible_types(file_path: Path) -> Dict[str, float]:
+    """
+    Detect ALL possible file types with confidence scores.
+
+    Educational Note:
+    Phase 4 Enhancement:
+    Unlike detect_with_confidence() which returns the BEST match,
+    this function returns ALL possible matches with their confidence scores.
+    This is useful for:
+    1. Identifying ambiguous detection scenarios
+    2. Providing users with alternatives
+    3. Debugging detection issues
+    4. Handling edge cases
+
+    Ambiguous Detection Examples:
+    - File with .txt extension that contains CSV data
+    - File with .log extension that is actually structured CSV
+    - Renamed files with misleading extensions
+
+    Args:
+        file_path: Path to file to analyze
+
+    Returns:
+        Dictionary mapping file types to confidence scores
+        Example: {'csv': 0.8, 'log': 0.3, 'text': 0.5}
+
+    Example:
+        >>> results = detect_all_possible_types(Path('data.txt'))
+        >>> if len(results) > 1:
+        ...     print("Ambiguous detection!")
+        ...     for ftype, conf in sorted(results.items(), key=lambda x: x[1], reverse=True):
+        ...         print(f"  {ftype}: {conf*100:.0f}%")
+    """
+    results = {}
+
+    # Check 1: Binary signature (most reliable)
+    sig_type = detect_by_signature(file_path)
+    if sig_type:
+        results[sig_type] = 1.0
+
+    # Check 2: Extension
+    ext_type = detect_by_extension(file_path)
+    if ext_type:
+        # Don't overwrite if already found by signature
+        if ext_type not in results:
+            results[ext_type] = 0.5
+
+    # Check 3: Content analysis for CSV
+    if looks_like_csv(file_path):
+        if 'csv' in results:
+            # Boost confidence if both extension and content agree
+            results['csv'] = max(results['csv'], 0.8)
+        else:
+            results['csv'] = 0.6
+
+    # Check 4: Content analysis for log
+    if looks_like_log(file_path):
+        if 'log' in results:
+            # Boost confidence if both extension and content agree
+            results['log'] = max(results['log'], 0.8)
+        else:
+            results['log'] = 0.6
+
+    # Check 5: Generic text fallback for .txt files
+    if ext_type == 'text' and 'text' in results and len(results) == 1:
+        # If only detected as generic text, lower confidence
+        results['text'] = 0.4
+
+    logger.debug(f"All possible types for {file_path}: {results}")
+    return results
+
+
+def is_detection_ambiguous(
+    file_path: Path,
+    confidence_threshold: float = 0.15
+) -> Tuple[bool, Dict[str, float]]:
+    """
+    Check if file type detection is ambiguous.
+
+    Educational Note:
+    Phase 4 Enhancement:
+    Ambiguous detection occurs when multiple file types have similar
+    confidence scores. This can happen due to:
+    - Misleading file extensions
+    - Files that match multiple formats
+    - Insufficient distinguishing features
+
+    We consider detection ambiguous if:
+    - Multiple types detected
+    - Confidence scores are within threshold of each other
+
+    Args:
+        file_path: Path to file to check
+        confidence_threshold: Max difference between top matches to be considered ambiguous
+
+    Returns:
+        Tuple of (is_ambiguous, all_results) where:
+        - is_ambiguous: True if detection is ambiguous
+        - all_results: Dict of all detected types with confidence
+
+    Example:
+        >>> ambiguous, results = is_detection_ambiguous(Path('data.txt'))
+        >>> if ambiguous:
+        ...     print("Warning: Multiple possible file types detected!")
+    """
+    all_results = detect_all_possible_types(file_path)
+
+    if len(all_results) < 2:
+        # Only one type detected or no types - not ambiguous
+        return False, all_results
+
+    # Sort by confidence (highest first)
+    sorted_types = sorted(all_results.items(), key=lambda x: x[1], reverse=True)
+
+    # Get top two confidence scores
+    top_confidence = sorted_types[0][1]
+    second_confidence = sorted_types[1][1]
+
+    # Ambiguous if top scores are close
+    is_ambiguous = (top_confidence - second_confidence) <= confidence_threshold
+
+    if is_ambiguous:
+        logger.warning(
+            f"Ambiguous detection for {file_path}: "
+            f"{sorted_types[0][0]} ({top_confidence:.0%}) vs "
+            f"{sorted_types[1][0]} ({second_confidence:.0%})"
+        )
+
+    return is_ambiguous, all_results
