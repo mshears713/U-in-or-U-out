@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Main Data Alchemist service
+  data-alchemist:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: data-alchemist:latest
+    container_name: data-alchemist
+
+    # Volume mappings for Windows/WSL
+    # Map your local data directory to /data in the container
+    volumes:
+      # Windows path example: ./data:/data
+      # WSL path example: ./data:/data
+      - ./data:/data
+      # Optionally mount examples directory
+      - ./examples:/app/examples:ro
+      # Optionally mount test fixtures
+      - ./tests/fixtures:/app/tests/fixtures:ro
+
+    # Environment variables (optional)
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Add any custom environment variables here
+
+    # Interactive mode - allows you to use the CLI
+    stdin_open: true
+    tty: true
+
+    # Default command (can be overridden)
+    # Examples:
+    # docker-compose run data-alchemist detect /data/sample.csv
+    # docker-compose run data-alchemist convert /data/sample.csv --output /data/output.json --format json
+    command: ["--help"]
+
+    # Resource limits (optional - adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M
+
+  # Development service with interactive shell
+  data-alchemist-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: data-alchemist:latest
+    container_name: data-alchemist-dev
+
+    volumes:
+      # Mount entire project for development
+      - .:/app
+      - ./data:/data
+
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+
+    stdin_open: true
+    tty: true
+
+    # Override entrypoint to use bash for development
+    entrypoint: ["/bin/bash"]
+
+    # Keeps container running
+    command: []
+
+    profiles:
+      - dev
+
+# Named volumes (optional - for persistent data)
+volumes:
+  data-volume:
+    driver: local
+
+# Networks (optional - for multi-container setups)
+networks:
+  default:
+    name: data-alchemist-network
