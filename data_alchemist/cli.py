@@ -28,7 +28,8 @@ from data_alchemist.core.models import (
     ConverterError
 )
 from data_alchemist.detection import detect_file_type, get_detection_details
-from data_alchemist.parsers import CSVParser, LogParser
+from data_alchemist.parsers import CSVParser, LogParser, WAVParser, ImageParser
+from data_alchemist.converters import JSONConverter, CSVConverter
 
 # Module logger (will be configured in main())
 logger = logging.getLogger(__name__)
@@ -357,7 +358,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--version',
         action='version',
-        version='Data Alchemist 0.2.0 (Phase 2 - Core Functionality)'
+        version='Data Alchemist 0.3.0 (Phase 3 - Additional Parsers & Output Conversion)'
     )
 
     # Subcommands
@@ -455,17 +456,17 @@ def main(argv: Optional[list] = None) -> int:
     # Create plugin manager
     plugin_manager = PluginManager()
 
-    # Phase 2: Register parsers
+    # Phase 2 & 3: Register parsers
     logger.debug("Registering parsers...")
     plugin_manager.register_parser(CSVParser())
     plugin_manager.register_parser(LogParser())
+    plugin_manager.register_parser(WAVParser())
+    plugin_manager.register_parser(ImageParser())
 
-    # TODO Phase 3: Register converters here
-    # Example:
-    # from data_alchemist.converters.json_converter import JSONConverter
-    # from data_alchemist.converters.csv_converter import CSVConverter
-    # plugin_manager.register_converter(JSONConverter())
-    # plugin_manager.register_converter(CSVConverter())
+    # Phase 3: Register converters
+    logger.debug("Registering converters...")
+    plugin_manager.register_converter(JSONConverter())
+    plugin_manager.register_converter(CSVConverter())
 
     logger.debug(f"Plugin manager stats: {plugin_manager.get_stats()}")
 
