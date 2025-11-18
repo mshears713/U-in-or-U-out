@@ -59,3 +59,4 @@ htmlcov/
 
 # Logs
 *.log
+!tests/fixtures/*.log
